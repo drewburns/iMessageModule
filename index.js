@@ -43,11 +43,16 @@ const getChatGUIDFromSQLiteDB = async (chatTitle) => {
         log(`got results from SQL query:`);
         log(err);
         log(rows);
-
+        console.log(rows);
         if (!rows || !rows.length) {
           return resolve(false);
         }
-		const theRow = rows.filter(r => r.guid.includes('iMessage'))[0]
+        const theRow = rows.filter((r) => r.guid.includes("iMessage"))[0];
+        if (!theRow) {
+          return resolve(new Error("This is SMS!"));
+          // return resolve("SMS_ONLY");
+        }
+
         return resolve(theRow.guid);
       });
     });
@@ -61,10 +66,10 @@ const _osascriptSendMessageToChat = async (
   chatMessage,
   callback
 ) => {
-  const finishedWithSend = () => {
+  const finishedWithSend = (message = null) => {
     isSending = false;
 
-    callback();
+    callback(message, null);
 
     if (didCancelSend) {
       log(`due to previously cancelled send, sending more messages from queue`);
@@ -76,22 +81,34 @@ const _osascriptSendMessageToChat = async (
 
   // need to retrieve chatGUID from chatTitle
   let chatGUID = await getChatGUIDFromSQLiteDB(chatTitle);
+  if (chatGUID instanceof Error) {
+    return callback(null, chatGUID);
+  }
+  //   return;
+  //   if (!chatGUID) {
+  // 	  console.log
+  //   }
+  //   console.log(chatGUID);
+  //   return chatGUID;
+  //   if (chatGUID === "SMS_ONLY") {
+  // 	  return finishedWithSend("SMS_ONLY")
+  //   }
 
   if (!chatGUID) {
     log(
       `unable to look up chatGUID for ${chatTitle}, using automator to start a new chat`
     );
 
-	const automatorCommand = `osascript ${__dirname}/applescript/convo.scpt "${chatTitle}" "${chatMessage}"`;
+    const automatorCommand = `osascript ${__dirname}/applescript/convo.scpt "${chatTitle}" "${chatMessage}"`;
 
     log(`exec automator command:\n${automatorCommand}`);
 
     return shell.exec(
       automatorCommand,
       {
-        silent: false,
+        silent: true,
       },
-      finishedWithSend
+      finishedWithSend("NEW_CHAT")
     );
   }
 
@@ -104,7 +121,7 @@ const _osascriptSendMessageToChat = async (
     {
       silent: true,
     },
-    finishedWithSend
+    finishedWithSend("EXISTING_CHAT")
   );
 };
 

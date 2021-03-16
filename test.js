@@ -1,8 +1,9 @@
 
 var imessage = require("./index.js");
 
-imessage.sendMessage("", "sorry last one -- maybe", function() {
-	console.log("should be fine 1");
+imessage.sendMessage("", "testing imessage bot", function(response, error) {
+	console.log(response);
+	console.log(error);
 });
 
 
